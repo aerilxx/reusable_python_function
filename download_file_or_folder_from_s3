@@ -1,0 +1,46 @@
+import boto3
+from urllib.parse import urlparse
+from urllib import parse
+import os
+from botocore.client import Config
+
+s3_client = boto3.client('s3',
+                         aws_access_key_id=AWS_ACCESS_KEY_ID,
+                         aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+                         region_name=AWS_REGION_NAME,
+                         config=Config(
+                             s3={'addressing_style': 'auto'}, signature_version='s3v4')
+                         )
+s3_session = boto3.Session(aws_access_key_id=AWS_ACCESS_KEY_ID,
+                         aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+                         region_name=AWS_REGION_NAME)  
+                   
+def download_from_s3(url):
+    key_path = parse.unquote_plus(parse.urlparse(url).path)[1:]
+    file_name = key_path.split('/')[-1] 
+    tempdir = os.path.join(BASE_DIR, "FRACTA_CLEAN_DATA")
+    try:
+        os.makedirs(tempdir)
+    except:
+        pass
+
+    temp_file = os.path.join(tempdir, file_name)
+    if not os.path.exists(temp_file):
+        s3_client.download_file(AWS_BUCKET_NAME, key_path, temp_file)
+        
+    return temp_file
+
+def get_s3_path_filename(key):
+    key = str(key)
+    return key.replace(key.split('/')[-1],""),  key.split('/')[-1]
+
+def download_s3_bucket(folder):
+ 
+    s3_client = s3_session.resource('s3')
+    s3_bucket = s3_client.Bucket(AWS_BUCKET_NAME)
+    for obj in s3_bucket.objects.filter(Prefix =folder):
+        s3_path, s3_filename = get_s3_path_filename(obj.key)
+        base_url = 'https://fractawhale.s3.us-east-2.amazonaws.com/'
+        obj_url = base_url + folder + s3_filename
+        download_from_s3(obj_url)
+    print('done')
